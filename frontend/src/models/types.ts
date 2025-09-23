@@ -27,5 +27,7 @@ export interface PlayerState {
   board: GridCell[][]
   buttons: number
   score: number
-    total_squares: number
+    position: number
+    income_buttons: number
+    pawn_color: string
 }

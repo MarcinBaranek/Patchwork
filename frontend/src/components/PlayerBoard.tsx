@@ -8,27 +8,27 @@ import {
 
 interface Props {
     player: PlayerState
-    selectedPatch: Patch | null
+    patches: Patch[]
     onPlacePatch: (patchId: string, x: number, y: number, playerId: number) => void
 }
 
-export default function PlayerBoard({ player, selectedPatch, onPlacePatch }: Props) {
+export default function PlayerBoard({ player, patches, onPlacePatch }: Props) {
     const boardRef = React.useRef<HTMLDivElement>(null)
     const [hoverCoords, setHoverCoords] = useState<{ x: number; y: number }[]>([])
 
     const [{ isOver }, drop] = useDrop(() => ({
         accept: 'PATCH',
         hover: (item: { id: string }, monitor) => {
-            if (!boardRef.current || !selectedPatch) return
+            const draggedPatch = patches.find(p => p.id === item.id)
+            if (!boardRef.current || !draggedPatch) return
             const offset = monitor.getClientOffset()
-            const boardEl = document.querySelector(`#board-${player.id}`) as HTMLDivElement
             if (!offset) return
 
-            const rect = boardEl.getBoundingClientRect()
+            const rect = boardRef.current.getBoundingClientRect()
             const cellSize = 28
             const x = Math.floor((offset.x - rect.left) / cellSize)
             const y = Math.floor((offset.y - rect.top) / cellSize)
-            const absCoords = computeAbsoluteCoords(selectedPatch.shape, { x, y })
+            const absCoords = computeAbsoluteCoords(draggedPatch.shape, { x, y })
             setHoverCoords(absCoords)
         },
         drop: (item: { id: string }, monitor) => {
@@ -49,9 +49,8 @@ export default function PlayerBoard({ player, selectedPatch, onPlacePatch }: Pro
         collect: (monitor) => ({
             isOver: !!monitor.isOver(),
         }),
-    }), [selectedPatch, onPlacePatch, player.id])
+    }), [patches, onPlacePatch, player.id])
 
-    // podpinamy DnD ref do DOM
     drop(boardRef)
 
     return (
