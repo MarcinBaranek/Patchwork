@@ -8,6 +8,14 @@ export function mirrorPatch(patch: Patch): Patch {
     }
 }
 
+export function mirrorPatchVertically(patch: Patch): Patch {
+    return {
+        ...patch,
+        shape:  patch.shape.map(({x, y}) => ({ x: x, y: patch.height - 1 - y }))
+    }
+}
+
+
 export function rotatePatch(patch: Patch): Patch {
     return mirrorPatch({
         ...patch,

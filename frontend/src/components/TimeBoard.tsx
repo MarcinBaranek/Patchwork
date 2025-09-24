@@ -14,7 +14,7 @@ export default function TimeBoard({ players, onMove }: Props) {
 
     return (
         <div className="time-board"
-             style={{ gridTemplateColumns: "repeat(20, 32px)",
+             style={{ gridTemplateColumns: "repeat(27, 32px)",
                 gridAutoRows: "32px"}}
         >
             {Array.from({ length: TIME_BOARD_LENGTH }).map((_, index) => {

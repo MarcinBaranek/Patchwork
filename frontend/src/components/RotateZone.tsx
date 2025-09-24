@@ -1,18 +1,19 @@
-import React from 'react'
+import React, {ReactNode} from 'react'
 import { useDrop } from 'react-dnd'
 import { Patch } from '../models/types'
-import {rotatePatch} from "../utils/placement";
 
 interface Props {
     setPatches: React.Dispatch<React.SetStateAction<Patch[]>>
+    rotateCallback: (patch: Patch) => Patch
+    icon: () => ReactNode
 }
 
-export default function FlipDropZone({ setPatches }: Props) {
+export default function FlipDropZone({ setPatches, rotateCallback, icon }: Props) {
     const [{ isOver }, drop] = useDrop(() => ({
         accept: 'PATCH',
         drop: (item: { id: string }) => {
             setPatches(prev =>
-                prev.map(p => p.id === item.id ? rotatePatch(p) : p)
+                prev.map(p => p.id === item.id ? rotateCallback(p) : p)
             )
         },
         collect: monitor => ({
@@ -35,7 +36,7 @@ export default function FlipDropZone({ setPatches }: Props) {
                 cursor: 'pointer'
             }}
         >
-            🔄
+            {icon()}
         </div>
     )
 }

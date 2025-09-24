@@ -1,13 +1,14 @@
 import React from 'react'
 
 interface Props {
+    gain: number
   onNext: () => void
 }
 
 /**
  * PawnBoard: shows which player's turn it is and provides a button to end the turn.
  */
-export default function PawnBoard({ onNext }: Props) {
+export default function PawnBoard({ gain, onNext }: Props) {
   return (
     <div>
       <button
@@ -17,7 +18,7 @@ export default function PawnBoard({ onNext }: Props) {
               width: "100%",
               fontSize: "1rem",
               fontWeight: "bold",
-      }}>End Turn</button>
+      }}>Gain buttons ({gain})</button>
     </div>
   )
 }

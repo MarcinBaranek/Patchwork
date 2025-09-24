@@ -1,17 +1,16 @@
-import React, {useMemo, useState} from 'react'
+import React, { useState} from 'react'
 import PlayerBoard from './components/PlayerBoard'
 import PawnBoard from './components/PawnBoard'
 import PatchPalette from './components/PatchPalette'
 import PlayerBox from './components/PlayerBox'
 import RotateZone from './components/RotateZone'
-import MirrorDropZone from "./components/MirrorZone";
 import TimeBoard from "./components/TimeBoard";
 import {PATCHES} from './data/patches'
 import {INCOME_SPACES, WILD_SPACES} from "./data/timeTrack";
 import {Patch, PlayerState} from './models/types'
 import {
     computeAbsoluteCoords,
-    canPlace
+    canPlace, rotatePatch, mirrorPatch, mirrorPatchVertically
 } from './utils/placement'
 import {computeIncome} from "./utils/calculator";
 import {DndProvider} from 'react-dnd'
@@ -26,7 +25,6 @@ function createEmptyBoard() {
 
 export default function App() {
     const [patches, setPatches] = useState<Patch[]>(PATCHES)
-    const [pawnIndex, setPawnIndex] = useState<number>(0)
     const [players, setPlayers] = useState<PlayerState[]>(() => [
         {
             id: 0,
@@ -52,28 +50,27 @@ export default function App() {
     const [current, setCurrent] = useState<number>(1)
     const [selectedPatchId, setSelectedPatchId] = useState<string | null>(null)
 
-    const selectedPatch = useMemo(
-        () => patches.find(
-            p => p.id === selectedPatchId
-        ) ?? null, [patches, selectedPatchId]
-    )
+    function calculateButtonsGain() {
+        const currentPlayer = players.find((p) => p.id === current)!
+        const opponent = players.find((p) => p.id !== current)!
+        return Math.max(opponent.position - currentPlayer.position + 1, 0);
+    }
 
     function endTurn() {
         const currentPlayer = players.find((p) => p.id === current)!
         const opponent = players.find((p) => p.id !== current)!
         if (opponent.position >= currentPlayer.position) {
-            movePawn(currentPlayer.id, opponent.position - currentPlayer.position + 1)
-            return
+            movePawn(currentPlayer.id, opponent.position - currentPlayer.position + 1, true)
         }
         setCurrent((c) => (c === 1 ? 0 : 1))
     }
 
-    function movePawn(playerId: number, steps: number) {
+    function movePawn(playerId: number, steps: number, paid: boolean = false) {
         setPlayers(
             (prev) => prev.map((p) => {
                 if (p.id !== playerId) return p
                 const oldPos = p.position
-                const newPos = Math.min(p.position + steps, TIME_BOARD_LENGTH)
+                const newPos = Math.min(p.position + steps, TIME_BOARD_LENGTH - 1)
                 const crossedIncomes = INCOME_SPACES.filter(
                     (pos) => pos > oldPos && pos <= newPos
                 )
@@ -85,8 +82,10 @@ export default function App() {
                 }
                 const opponent = prev.find((p) => p.id !== playerId)!
 
-                const crossedWild = WILD_SPACES.find(space => space === newPos)
-                if (crossedWild !== undefined) {
+                const crossedWild = WILD_SPACES.filter(
+                    (pos) => pos > oldPos && pos <= newPos
+                )
+                if (crossedWild.length > 0) {
                     placeWildPatch(p.id, steps)
                     const idx = WILD_SPACES.indexOf(newPos)
                     if (idx !== -1) {WILD_SPACES.splice(idx, 1)}
@@ -97,11 +96,11 @@ export default function App() {
                 }
                 // Calculate score
                 const emptySquares = p.board.flat().filter(c => c === null).length
-
+                if (paid) {gained = gained + steps }
                 return {
                     ...p,
                     position: newPos,
-                    score: -2 * emptySquares + p.buttons + gained + potential_income,
+                    score: -2 * emptySquares + p.buttons + gained,
                     buttons: p.buttons + gained,
                     income_buttons: potential_income
                 }
@@ -125,10 +124,10 @@ export default function App() {
         // ustawiamy patch jako aktualnie wybrany dla gracza
         setSelectedPatchId(wildPatch.id)
         setPatches(prev => [wildPatch, ...prev])
-        // movePawn(playerId, steps)
     }
 
     function handlePlacePatch(patchId: string, x: number, y: number, playerId?: number) {
+        console.log("Placing " + patchId)
         const p = patches.find(p => p.id === patchId)
         if (!p) return
         const origin = {x, y}
@@ -140,12 +139,9 @@ export default function App() {
         // Check if patch can be placed
         if (p.cost_in_buttons > players[playerIndex].buttons) return // check the budget
         const patchIndex = patches.indexOf(p)
-        if (patchIndex > 2 || patchIndex == -1) return
-        if (!canPlace(absCoords, board)) {
-            console.log("Can't place");
-            return
-        }
-
+        console.log("patchIndex in handle place", patchIndex)
+        if (patchIndex > 2 || patchIndex == -1) return  // check if took allowed patches
+        if (!canPlace(absCoords, board)) {return}
         // Create new board with patch placed
         const newBoard = board.map(row => row.slice())
         for (const c of absCoords) {
@@ -165,6 +161,7 @@ export default function App() {
             .forEach((value) => patches.push(value))
         setPatches(patches.filter(pp => pp.id !== p.id))
         setSelectedPatchId(null)
+        console.log("Will move after placing")
         movePawn(playerIndex, p.cost_in_squares)
     }
 
@@ -194,7 +191,15 @@ export default function App() {
                     </div>
                 </div>
                 <div className="top-row">
-                    <div className="left-column">
+                    <div className="left-column"
+                         style={{
+                             display: "flex",
+                             justifyContent: "space-evenly",
+                             flexDirection: "column",
+                             // gap: "4rem"
+                             // margin: "8rem",
+                         }}
+                    >
                         <PlayerBoard
                             player={players[0]}
                             patches={patches}
@@ -204,24 +209,50 @@ export default function App() {
                             squares: {players[0].board.flat().filter(c => c === null).length}</div>
                     </div>
 
-                    <div className="center-column">
-                        <PawnBoard onNext={endTurn}/>
+                    <div className="center-column"
+                         style={{
+                             display: "flex",
+                             justifyContent: "space-evenly",
+                             flexDirection: "column",
+                             // margin: "8rem",
+                         }}
+                    >
+                        <PawnBoard gain={calculateButtonsGain()} onNext={endTurn}/>
                         <div className="actions"
                              style={{flexDirection: 'row', justifyContent: 'space-between', marginLeft: "2rem", marginRight: "2rem", marginBottom: "1rem"}}
                         >
-                            <MirrorDropZone setPatches={setPatches} />
-                            <RotateZone setPatches={setPatches} />
+                            <RotateZone
+                                setPatches={setPatches}
+                                rotateCallback={mirrorPatch}
+                                icon={()=> {return "↔"}}
+                            />
+                            <RotateZone
+                                setPatches={setPatches}
+                                rotateCallback={mirrorPatchVertically}
+                                icon={()=> {return "↔"}}
+                            />
+                            <RotateZone
+                                setPatches={setPatches}
+                                rotateCallback={rotatePatch}
+                                icon={() => {return "🔄"}}
+                            />
                         </div>
                         <div className="controls">
                             <PatchPalette patches={patches}
                                           onSelect={setSelectedPatchId}
-                                          pawnIndex={pawnIndex}
                                           limit={3}
                             />
                         </div>
                     </div>
 
-                    <div className="right-column">
+                    <div className="right-column"
+                         style={{
+                             display: "flex",
+                             justifyContent: "space-evenly",
+                             flexDirection: "column",
+                             // margin: "8rem",
+                         }}
+                    >
                         <PlayerBoard
                             player={players[1]}
                             patches={patches}
@@ -236,7 +267,6 @@ export default function App() {
                     <PatchPalette
                         patches={patches}
                         onSelect={setSelectedPatchId}
-                        pawnIndex={pawnIndex + 3}
                         limit={undefined}
                     />
                 </div>

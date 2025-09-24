@@ -10,6 +10,6 @@ import './styles.css'
 const root = createRoot(document.getElementById('root')!)
 root.render(
     <DndProvider backend={HTML5Backend}>
-        <App />
+        <App/>
     </DndProvider>
 )

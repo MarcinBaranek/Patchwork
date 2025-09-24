@@ -28,7 +28,8 @@ export default function PatchItem({patch, onSelect}: {
                 display: 'grid',
                 gridTemplateColumns: `repeat(${patch.width}, 28px)`,
                 gridTemplateRows: `repeat(${patch.height}, 28px)`,
-                // border: '1px solid #333',
+                justifyContent: "center",
+                alignItems: "center",
                 cursor: 'grab',
                 marginBottom: "1rem",
                 marginLeft: "0.5rem",
@@ -50,7 +51,8 @@ export default function PatchItem({patch, onSelect}: {
                             width: 28,
                             height: 28,
                             border: '1px solid #aaa',
-                            opacity: (isDragging && !filled) ? 0. : 1,
+                            // opacity: (isDragging && !filled) ? 0. : 1,
+                            opacity: (!filled) ? 0. : 1,
                             backgroundColor: filled ? '#88bcee' : '#fff',
                             textAlign: 'center',
                         }}
@@ -62,16 +64,20 @@ export default function PatchItem({patch, onSelect}: {
             <div style={{
                 display: "flex",
                 flexDirection: "row",
+                justifyContent: "center",
                 alignItems: "center",
-                gap: 8,
-                marginTop: 8,
-                fontSize: 12,
+                height: "1vh",
+                gap: "1rem",
+                marginTop: "1rem",
+                marginLeft: "1rem",
+                marginRight: "1rem",
+                fontSize: 18,
             }}>
-                <div style={{display: "flex", alignItems: "center", gap: 0}}>
+                <div style={{display: "flex", gap: 0}}>
                     <span>🧵</span>
                     <span>{patch.cost_in_buttons}</span>
                 </div>
-                <div style={{display: "flex", alignItems: "center", gap: 0}}>
+                <div style={{display: "flex", gap: 0}}>
                     <span>⏳</span>
                     <span>{patch.cost_in_squares}</span>
                 </div>

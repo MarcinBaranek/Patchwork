@@ -316,19 +316,6 @@ export const PATCHES: Patch[] = shuffle([
         cost_in_squares: 5
     },
     {
-        id: 'p20',
-        name: '2-square',
-        width: 2,
-        height: 1,
-        shape: [
-            { x: 0, y: 0 },
-            { x: 1, y: 0 }
-        ],
-        cost_in_buttons: 2,
-        income_buttons: 0,
-        cost_in_squares: 1
-    },
-    {
         id: 'p21',
         name: 'small-broken-cross',
         width: 3,
@@ -532,4 +519,16 @@ export const PATCHES: Patch[] = shuffle([
         income_buttons: 2,
         cost_in_squares: 3
     }
-])
+]).concat([{
+    id: 'p20',
+    name: '2-square',
+    width: 2,
+    height: 1,
+    shape: [
+        { x: 0, y: 0 },
+        { x: 1, y: 0 }
+    ],
+    cost_in_buttons: 2,
+    income_buttons: 0,
+    cost_in_squares: 1
+}])

@@ -3,7 +3,8 @@ import React, {useState} from 'react'
 import { useDrop } from 'react-dnd'
 import { PlayerState, Patch } from '../models/types'
 import {
-    computeAbsoluteCoords
+    computeAbsoluteCoords,
+    canPlace
 } from "../utils/placement";
 
 interface Props {
@@ -15,14 +16,21 @@ interface Props {
 export default function PlayerBoard({ player, patches, onPlacePatch }: Props) {
     const boardRef = React.useRef<HTMLDivElement>(null)
     const [hoverCoords, setHoverCoords] = useState<{ x: number; y: number }[]>([])
+    const [isCorrectPlacement, setIsCorrectPlacement] = useState<boolean>(false)
 
     const [{ isOver }, drop] = useDrop(() => ({
         accept: 'PATCH',
         hover: (item: { id: string }, monitor) => {
             const draggedPatch = patches.find(p => p.id === item.id)
-            if (!boardRef.current || !draggedPatch) return
+            if (!boardRef.current || !draggedPatch) {
+                setHoverCoords([])
+                return
+            }
             const offset = monitor.getClientOffset()
-            if (!offset) return
+            if (!offset) {
+                setHoverCoords([])
+                return
+            }
 
             const rect = boardRef.current.getBoundingClientRect()
             const cellSize = 28
@@ -30,11 +38,18 @@ export default function PlayerBoard({ player, patches, onPlacePatch }: Props) {
             const y = Math.floor((offset.y - rect.top) / cellSize)
             const absCoords = computeAbsoluteCoords(draggedPatch.shape, { x, y })
             setHoverCoords(absCoords)
+            setIsCorrectPlacement(canPlace(absCoords, player.board))
         },
         drop: (item: { id: string }, monitor) => {
-            if (!boardRef.current) return
+            if (!boardRef.current) {
+                setHoverCoords([])
+                return
+            }
             const offset = monitor.getClientOffset()
-            if (!offset) return
+            if (!offset) {
+                setHoverCoords([])
+                return
+            }
 
             const rect = boardRef.current.getBoundingClientRect()
             const cellSize = 28 // rozmiar jednego pola
@@ -47,7 +62,7 @@ export default function PlayerBoard({ player, patches, onPlacePatch }: Props) {
             setHoverCoords([])
         },
         collect: (monitor) => ({
-            isOver: !!monitor.isOver(),
+            isOver: !!monitor.isOver()
         }),
     }), [patches, onPlacePatch, player.id])
 
@@ -62,6 +77,12 @@ export default function PlayerBoard({ player, patches, onPlacePatch }: Props) {
                 gridTemplateColumns: `repeat(${player.board[0].length}, 28px)`,
                 gap: 1,
             }}
+            onDragEnd={() => {setHoverCoords([])}}
+            onDragLeave={() => {setHoverCoords([])}}
+            onDragEndCapture={() => {setHoverCoords([])}}
+            onDragExit={() => {setHoverCoords([])}}
+            onDragExitCapture={() => {setHoverCoords([])}}
+            onDragLeaveCapture={() => {setHoverCoords([])}}
         >
             {player.board.flatMap((row, y) =>
                 row.map((cell, x) => {
@@ -74,7 +95,7 @@ export default function PlayerBoard({ player, patches, onPlacePatch }: Props) {
                             height: 28,
                             border: '1px solid #ddd',
                             backgroundColor: cell ? '#88bcee' : isHoverCell
-                                ? 'rgba(0,200,0,0.4)' // zielone podświetlenie pod kursorem
+                                ? (isCorrectPlacement ? 'rgba(0,200,0,0.4)' : "rgba(200,0,0,0.4)" )// zielone podświetlenie pod kursorem
                                 : '#fff',
                         }}
                     />
