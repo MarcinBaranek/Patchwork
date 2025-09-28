@@ -9,18 +9,21 @@ interface Props {
     patches: Patch[]
     onSelect: (id: string) => void
     limit?: number
+    skip?: number
 }
 
 export default function PatchPalette({
                                          patches,
                                          onSelect,
-                                         limit
+                                         limit,
+                                        skip
                                      }: Props) {
     const text = limit? "Available patches" : "Next patches"
+
     const tmp_patches =
         limit?
             patches.slice(0, limit)
-            : patches.slice(3, undefined)
+            : patches.slice(skip? skip: 3, undefined)
     return (
         <div className="palette"
             style={{

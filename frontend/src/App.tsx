@@ -1,18 +1,17 @@
-import React, { useState} from 'react'
+import React, { useState } from 'react'
 import PlayerBoard from './components/PlayerBoard'
 import PawnBoard from './components/PawnBoard'
 import PatchPalette from './components/PatchPalette'
 import PlayerBox from './components/PlayerBox'
 import RotateZone from './components/RotateZone'
 import TimeBoard from "./components/TimeBoard";
-import {PATCHES} from './data/patches'
+import {getWildPatch, PATCHES} from './data/patches'
 import {INCOME_SPACES, WILD_SPACES} from "./data/timeTrack";
 import {Patch, PlayerState} from './models/types'
 import {
     computeAbsoluteCoords,
     canPlace, rotatePatch, mirrorPatch, mirrorPatchVertically
 } from './utils/placement'
-import {computeIncome} from "./utils/calculator";
 import {DndProvider} from 'react-dnd'
 import {HTML5Backend} from 'react-dnd-html5-backend'
 import {BOARD_SIZE, TIME_BOARD_LENGTH, START_BUTTONS} from "./data/constants";
@@ -49,6 +48,8 @@ export default function App() {
     ])
     const [current, setCurrent] = useState<number>(1)
     const [selectedPatchId, setSelectedPatchId] = useState<string | null>(null)
+    const [patchIndex, setPatchIndex] = useState<number>(3)
+
 
     function calculateButtonsGain() {
         const currentPlayer = players.find((p) => p.id === current)!
@@ -60,114 +61,133 @@ export default function App() {
         const currentPlayer = players.find((p) => p.id === current)!
         const opponent = players.find((p) => p.id !== current)!
         if (opponent.position >= currentPlayer.position) {
-            movePawn(currentPlayer.id, opponent.position - currentPlayer.position + 1, true)
+            movePawn(currentPlayer, opponent.position - currentPlayer.position + 1, true)
+            return
         }
         setCurrent((c) => (c === 1 ? 0 : 1))
     }
 
-    function movePawn(playerId: number, steps: number, paid: boolean = false) {
+    function movePawnOnBoard(player: PlayerState, steps: number) {
+        if (!player) {return}
+        const newPos = Math.min(player.position + steps, TIME_BOARD_LENGTH - 1)
         setPlayers(
             (prev) => prev.map((p) => {
-                if (p.id !== playerId) return p
-                const oldPos = p.position
-                const newPos = Math.min(p.position + steps, TIME_BOARD_LENGTH - 1)
-                const crossedIncomes = INCOME_SPACES.filter(
-                    (pos) => pos > oldPos && pos <= newPos
-                )
-
-                let gained = 0
-                const potential_income = computeIncome(p, PATCHES)
-                if (crossedIncomes.length > 0) {
-                    gained = potential_income * crossedIncomes.length // policz przychód z patchy
-                }
-                const opponent = prev.find((p) => p.id !== playerId)!
-
-                const crossedWild = WILD_SPACES.filter(
-                    (pos) => pos > oldPos && pos <= newPos
-                )
-                if (crossedWild.length > 0) {
-                    placeWildPatch(p.id, steps)
-                    const idx = WILD_SPACES.indexOf(newPos)
-                    if (idx !== -1) {WILD_SPACES.splice(idx, 1)}
-                    // return p
-                }
-                if (newPos > opponent.position && !(crossedWild !== undefined)) {
-                    setCurrent(opponent.id)
-                }
-                // Calculate score
-                const emptySquares = p.board.flat().filter(c => c === null).length
-                if (paid) {gained = gained + steps }
-                return {
-                    ...p,
-                    position: newPos,
-                    score: -2 * emptySquares + p.buttons + gained,
-                    buttons: p.buttons + gained,
-                    income_buttons: potential_income
-                }
+                if (p.id !== player.id) return p
+                return {...p, position: newPos}
             })
         )
-
     }
 
-    function placeWildPatch(playerId: number, steps: number) {
-        const wildPatch: Patch = {
-            id: `wild-${Date.now()}`, // unikalne id
-            name: 'Wild 1x1',
-            shape: [{x: 0, y: 0}],             // 1x1 patch
-            width: 1,
-            height: 1,
-            cost_in_buttons: 0,
-            cost_in_squares: 0,
-            income_buttons: 0
+    function calculateIncome(player: PlayerState, steps: number, paid: boolean = false) {
+        const oldPos = player.position
+        const newPos = Math.min(player.position + steps, TIME_BOARD_LENGTH - 1)
+        const crossedIncomes = INCOME_SPACES.filter(
+            (pos) => pos > oldPos && pos <= newPos
+        )
+        let gained = 0
+        if (crossedIncomes.length > 0) {
+            gained = player.income_buttons * crossedIncomes.length // policz przychód z patchy
         }
+        if (paid) {gained = gained + steps }
+        setPlayers(
+            (prev) => prev.map((p) => {
+                if (p.id !== player.id) return p
+                return {...p, buttons: player.buttons + gained}
+            })
+        )
+        return player.buttons + gained
+    }
 
-        // ustawiamy patch jako aktualnie wybrany dla gracza
+    function updateScore(player: PlayerState, currentButtons : number) {
+        setPlayers(
+            (prev) => prev.map((p) => {
+                if (p.id !== player.id) return p
+                const emptySquares = p.board.flat().filter(c => c === null).length
+                return {...p, score: -2 * emptySquares + currentButtons }
+            })
+        )
+    }
+
+    function movePawn(player: PlayerState, steps: number, paid: boolean = false) {
+        // const player = players.find((p) => p.id === playerId)!
+        const opponent = players.find((p) => p.id !== player.id)!
+        const oldPos = player.position
+        if (oldPos >= TIME_BOARD_LENGTH - 1) {
+            setPatchIndex(3)
+            return;
+        }
+        const newPos =  Math.min(player.position + steps, TIME_BOARD_LENGTH - 1)
+        movePawnOnBoard(player, steps)
+        const currentButtons = calculateIncome(player, steps, paid)
+        updateScore(player, currentButtons)
+        const crossedWild = WILD_SPACES.filter(
+            (pos) => pos > oldPos && pos <= newPos
+        )
+        console.log("checking coressed wild: ", crossedWild)
+        if (crossedWild.length > 0) {
+            const idx = WILD_SPACES.indexOf(crossedWild[0])
+            console.log("Wild patch idx: ", idx)
+            if (idx !== -1) {WILD_SPACES.splice(idx, 1)}
+            console.log("Wild patch placing!")
+            placeWildPatch()
+            setPatchIndex(1)
+            // setCurrent(opponent.id)
+            return
+        }
+        if (newPos > opponent.position) {
+            console.log("Change player")
+            setCurrent(opponent.id)
+            if (patchIndex === 1) {
+                setPatchIndex(3)
+            }
+        }
+    }
+
+    function placeWildPatch() {
+        const wildPatch: Patch = getWildPatch()
         setSelectedPatchId(wildPatch.id)
         setPatches(prev => [wildPatch, ...prev])
     }
-
+    function removePatch(patch: Patch) {
+        patches.splice(0, patches.indexOf(patch))
+            .forEach((value) => patches.push(value))
+        setPatches(patches.filter(pp => pp.id !== patch.id))
+        setSelectedPatchId(null)
+    }
     function handlePlacePatch(patchId: string, x: number, y: number, playerId?: number) {
-        console.log("Placing " + patchId)
         const p = patches.find(p => p.id === patchId)
         if (!p) return
         const origin = {x, y}
         const absCoords = computeAbsoluteCoords(p.shape, origin)
-
-        const playerIndex = players.findIndex(pl => pl.id === (playerId ?? current))
-        const board = players[playerIndex].board
-        if (playerIndex != current) return; // check owner of the board
+        const player = players.find(p => p.id === playerId)!
+        if (player.position >= TIME_BOARD_LENGTH - 1) {
+            return;
+        }
+        if (player.id != current) return; // check owner of the board
         // Check if patch can be placed
-        if (p.cost_in_buttons > players[playerIndex].buttons) return // check the budget
-        const patchIndex = patches.indexOf(p)
-        console.log("patchIndex in handle place", patchIndex)
-        if (patchIndex > 2 || patchIndex == -1) return  // check if took allowed patches
-        if (!canPlace(absCoords, board)) {return}
-        // Create new board with patch placed
-        const newBoard = board.map(row => row.slice())
-        for (const c of absCoords) {
-            newBoard[c.y][c.x] = p.id
-        }
-
-        // Update players state
-        const newPlayers = players.slice()
-        newPlayers[playerIndex] = {
-            ...newPlayers[playerIndex],
+        if (p.cost_in_buttons > player.buttons) return // check the budget
+        const selectedPatchIndex = patches.indexOf(p)
+        console.log("patchIndex in handle place", selectedPatchIndex)
+        if (selectedPatchIndex > patchIndex - 1 || selectedPatchIndex == -1) return  // check if took allowed patches
+        if (!canPlace(absCoords, player.board)) {return}
+        const newBoard = player.board.map(row => row.slice())
+        absCoords.forEach((
+            (cord, i) => {
+                newBoard[cord.y][cord.x] = p.colors(i)
+            }
+        ))
+        const updatedPlayer = {
+            ...player,
             board: newBoard,
-            buttons: newPlayers[playerIndex].buttons - p.cost_in_buttons
+            buttons: player.buttons - p.cost_in_buttons,
+            income_buttons: player.income_buttons + p.income_buttons,
         }
-        setPlayers(newPlayers)
-        // Remove patch from available patches
-        patches.splice(0, patches.indexOf(p))
-            .forEach((value) => patches.push(value))
-        setPatches(patches.filter(pp => pp.id !== p.id))
-        setSelectedPatchId(null)
-        console.log("Will move after placing")
-        movePawn(playerIndex, p.cost_in_squares)
-    }
-
-    function skipPlace() {
-        setSelectedPatchId(null);
-        endTurn()
+        setPlayers((prev) => prev.map((pl) => {
+            if (pl.id !== player.id) return pl
+            return updatedPlayer
+        }))
+        removePatch(p)
+        movePawn(updatedPlayer, p.cost_in_squares)
     }
 
     const currentPlayer = players.find(p => p.id === current)!
@@ -240,7 +260,7 @@ export default function App() {
                         <div className="controls">
                             <PatchPalette patches={patches}
                                           onSelect={setSelectedPatchId}
-                                          limit={3}
+                                          limit={patchIndex}
                             />
                         </div>
                     </div>
@@ -262,12 +282,13 @@ export default function App() {
                             squares: {players[1].board.flat().filter(c => c === null).length}</div>
                     </div>
                 </div>
-                <TimeBoard players={players} onMove={movePawn} />
+                <TimeBoard players={players} />
                 <div className="controls">
                     <PatchPalette
                         patches={patches}
                         onSelect={setSelectedPatchId}
                         limit={undefined}
+                        skip={patchIndex}
                     />
                 </div>
             </div>

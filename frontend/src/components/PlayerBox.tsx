@@ -1,6 +1,6 @@
 import React from 'react'
 import {PlayerState} from "../models/types";
-import {INCOME_SPACES} from "../data/timeTrack";
+import buttonIcon from "../assets/button_image.png"
 
 interface Props {
     player: PlayerState
@@ -20,12 +20,14 @@ export default function PlayerBox({player, currentPlayerId}: Props) {
                  borderRadius: '8px'}}
         >
             <div className={"left-column"}>
-                <h3>{player.name}</h3>
-                <h3>Buttons: {player.buttons}</h3>
-                <h3>Score: {player.score}</h3>
-                <h3>
-                    {`Income: ${player.income_buttons}`}
-                </h3>
+                <h3>{player.name} ({player.score})</h3>
+                <h3 style={{display: "flex", flexDirection: "row", alignItems: "center"}}>
+                    {player.buttons}
+                    <img
+                        src={buttonIcon}
+                        style={{width: "5vw", height: "5vw", alignItems: "center"}}
+                    />
+                    (+{player.income_buttons})</h3>
             </div>
             <div className={"right-column"}>
                 {isActive && (

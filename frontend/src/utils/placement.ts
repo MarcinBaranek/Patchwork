@@ -1,4 +1,5 @@
 import {PatchShape, Coord, Patch} from '../models/types'
+import {JSX} from "react";
 
 
 export function mirrorPatch(patch: Patch): Patch {
@@ -41,7 +42,7 @@ export function computeAbsoluteCoords(
  * @param coords absolute coords to place
  * @param board grid of GridCell[][] (row major with y index) - board[y][x]
  */
-export function canPlace(coords: Coord[], board: (string | null)[][]): boolean {
+export function canPlace(coords: Coord[], board: (string | null | JSX.Element)[][]): boolean {
   for (const c of coords) {
     if (c.x < 0 || c.y < 0 || c.y >= board.length || c.x >= board[0].length) return false
     if (board[c.y][c.x] !== null) return false

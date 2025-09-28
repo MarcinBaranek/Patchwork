@@ -98,7 +98,9 @@ export default function PlayerBoard({ player, patches, onPlacePatch }: Props) {
                                 ? (isCorrectPlacement ? 'rgba(0,200,0,0.4)' : "rgba(200,0,0,0.4)" )// zielone podświetlenie pod kursorem
                                 : '#fff',
                         }}
-                    />
+                    >
+                        {cell? (cell === '#88bcee'? null: cell) : null}
+                    </div>
                 )})
             )}
         </div>

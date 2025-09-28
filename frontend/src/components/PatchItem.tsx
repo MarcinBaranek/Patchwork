@@ -1,21 +1,27 @@
 import {Patch} from "../models/types";
 import {useDrag} from "react-dnd";
-import buttonIcon from '../assets/button_icon.png'
 import React from "react";
+import {useEffect} from "react";
+import {getEmptyImage} from "react-dnd-html5-backend";
+import { useDragLayer } from 'react-dnd'
 
 
-export default function PatchItem({patch, onSelect}: {
+export default function PatchItem({patch, onSelect, preview=false}: {
     patch: Patch;
     onSelect: (id: string) => void
+    preview?: boolean
 }) {
-    const [{isDragging}, drag] = useDrag(() => ({
+    const [{isDragging}, drag, previewRef] = useDrag(() => ({
         type: 'PATCH',
         item: {id: patch.id},
         collect: (monitor) => ({
             isDragging: !!monitor.isDragging(),
         }),
     }))
-    let leftIncome = patch.income_buttons
+    // Hide the default browser drag preview
+    // useEffect(() => {
+    //     preview(getEmptyImage(), { captureDraggingState: true })
+    // }, [preview])
     return (
         <div
             key={patch.id}
@@ -40,24 +46,28 @@ export default function PatchItem({patch, onSelect}: {
             {Array.from({length: patch.width * patch.height}).map((_, idx) => {
                 const x = idx % patch.width
                 const y = Math.floor(idx / patch.width)
-                const filled = patch.shape.some(cell => cell.x === x && cell.y === y)
-                if (filled) {
-                    leftIncome -= 1
-                }
+                let square_idx = -1
+                patch.shape.forEach(
+                    (cell, i) => {
+                        if (cell.x === x && cell.y === y) {
+                            square_idx = i
+                        }
+                    })
+                const filled = square_idx >=0
                 return (
                     <div
                         key={idx}
                         style={{
-                            width: 28,
-                            height: 28,
+                            width: '100%',
+                            height: '100%',
                             border: '1px solid #aaa',
                             // opacity: (isDragging && !filled) ? 0. : 1,
                             opacity: (!filled) ? 0. : 1,
-                            backgroundColor: filled ? '#88bcee' : '#fff',
+                            background: filled ? patch.colors(square_idx) : '#fff',
                             textAlign: 'center',
                         }}
                     >
-                        {leftIncome > -1 && filled ? button_icon() : null}
+                        {filled ? patch.colors(square_idx) : null}
                     </div>
                 )
             })}
@@ -87,12 +97,64 @@ export default function PatchItem({patch, onSelect}: {
 }
 
 
-function button_icon() {
+
+
+
+function getItemStyles(initialOffset: any, currentOffset: any) {
+    if (!initialOffset || !currentOffset) {
+        return {
+            display: 'none',
+        }
+    }
+
+    const { x, y } = currentOffset
+    const transform = `translate(${x}px, ${y}px)`
+    return {
+        transform,
+        WebkitTransform: transform,
+        pointerEvents: 'none', // don’t block mouse events
+    }
+}
+
+function CustomDragLayer() {
+    const {
+        item,
+        itemType,
+        isDragging,
+        initialOffset,
+        currentOffset,
+    } = useDragLayer((monitor) => ({
+        item: monitor.getItem(),
+        itemType: monitor.getItemType(),
+        initialOffset: monitor.getInitialSourceClientOffset(),
+        currentOffset: monitor.getSourceClientOffset(),
+        isDragging: monitor.isDragging(),
+    }))
+
+    if (!isDragging || itemType !== 'PATCH') {
+        return null
+    }
+
     return (
-        <img
-            src={buttonIcon}
-            alt="button_icon"
-            style={{width: 28, height: 28}}>
-        </img>
+        <div
+            style={{
+                position: 'fixed',
+                pointerEvents: 'none',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                zIndex: 100,
+            }}
+        >
+            <div
+                // style={getItemStyles(initialOffset, currentOffset)}
+            >
+                {/* Render your patch here but more transparent */}
+                <div style={{ opacity: 0.5 }}>
+                    <PatchItem patch={item.patch} onSelect={() => {}} />
+                </div>
+            </div>
+        </div>
     )
 }

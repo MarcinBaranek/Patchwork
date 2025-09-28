@@ -3,14 +3,20 @@ import React from "react"
 import { PlayerState } from "../models/types"
 import {INCOME_SPACES, WILD_SPACES} from "../data/timeTrack";
 import {TIME_BOARD_LENGTH} from "../data/constants";
+import {getWildPatch} from "../data/patches";
+import {wildPatch} from "./patchesStyles";
 
 interface Props {
     players: PlayerState[]
-    onMove: (playerId: number, steps: number) => void
 }
 
 
-export default function TimeBoard({ players, onMove }: Props) {
+function getBackgroundImage() {
+
+}
+
+
+export default function TimeBoard({ players }: Props) {
 
     return (
         <div className="time-board"
@@ -32,7 +38,7 @@ export default function TimeBoard({ players, onMove }: Props) {
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
-                            background: isIncome? "#ecd706": isWild? "#e18b5d" : "#f8f8f8",
+                            background: isIncome? "#ecd706": isWild? wildPatch(): "#f8f8f8",
                             position: "relative",
                         }}
                     >
